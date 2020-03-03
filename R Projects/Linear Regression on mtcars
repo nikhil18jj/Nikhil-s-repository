@@ -1,0 +1,77 @@
+data(mtcars)
+cars=mtcars
+head(cars)
+
+plot(cars$mpg,cars$hp,type="p",col="skyblue",xlab="Miles per gallon",ylab="Horsepower"
+     ,main="Miles per gallon vs Horsepower")
+#Simple linear model
+relation=lm(cars$mpg~cars$hp)
+print(relation)
+print(summary(relation,correlation=TRUE,symbolic.cor=TRUE))
+
+confint(relation)
+#Intercept:30.09886     
+#slope: -0.06823
+#Confidence interval:97.5%
+
+
+plot(cars$mpg,cars$hp,xlab="hp",ylab="mpg",pch=16,main="Linear Regression with mpg~hp")
+new=c(126,167,189,211,272,312)
+new1=as.data.frame(new)
+#Predict mileage
+predict(relation,new1,interval="confidence")
+
+#HP versus mpg,wt
+plot(cars$mpg+cars$hp+cars$wt,type="p")
+car.fit=lm(cars$mpg~cars$hp+cars$wt,data=cars)
+print(car.fit)
+summary(car.fit,correlation=TRUE,symbolic.cor=TRUE)
+#Returns:
+#The weighted residuals, the usual residuals rescaled by the square root of the weights specified in the call to lm.
+#p x 4 matrix with columns for the estimated coefficient, its standard error, t-statistic and corresponding (two-sided) p-value.
+#the square root of the estimated variance of the random error
+#R^2, the 'fraction of variance explained by the model',
+#R^2 = 1 - Sum(R[i]^2) / Sum((y[i]- y*)^2),
+#where y* is the mean of y[i] if there is an intercept and zero otherwise.
+#Other correlation coefficients
+confint(car.fit)
+
+#Intercept:37.22727
+#cars$hp:-0.03177
+#cars$wt:-3.87783
+pred1=predict(car.fit)
+pred1
+car.fit1=lm(cars$mpg~cars$hp+cars$wt+cars$hp*cars$wt)
+print(car.fit1)
+confint(car.fit1)
+#Intercept:49.8042
+#Slope:-0.12010
+#Returns:
+#The weighted residuals, the usual residuals rescaled by the square root of the weights specified in the call to lm.
+#p x 4 matrix with columns for the estimated coefficient, its standard error, t-statistic and corresponding (two-sided) p-value.
+#the square root of the estimated variance of the random error
+#R^2, the 'fraction of variance explained by the model',
+#R^2 = 1 - Sum(R[i]^2) / Sum((y[i]- y*)^2),
+#where y* is the mean of y[i] if there is an intercept and zero otherwise.
+#Other correlation coefficients
+summary(car.fit1,correlation=TRUE,symbolic.cor=TRUE)
+
+pred2=predict(car.fit1)
+pred2
+
+hp1=c(126,167,189,211,272,312)
+wt1=c(1.5,2.2,2.9,3.2,3.8,4.2)
+new2=c(hp1,wt1)
+new3=as.data.frame(new2)
+predict(car.fit,new3,interval="prediction")
+predict(car.fit,new3,interval="confidence")
+predict(car.fit1,new3,interval="prediction")
+predict(car.fit1,new3,interval="confidence")
+plot(cars$mpg,cars$hp+cars$wt,type="p",col="skyblue",xlab="Miles per gallon",ylab="Horsepower+weight"
+     ,main="MutliLinear Regression:1")
+abline(car.fit,col="skyblue")
+plot(cars$mpg,cars$hp+cars$wt+cars$hp*cars$wt,type="p",col="yellow",xlab="Miles per gallon",ylab="Horsepower+weight"
+     ,main="MutliLinear Regression:2")
+abline(car.fit1,col="Red")
+#Multilinear model 1 performs better than 2 as confidence interval is shorter
+#Both models,due to low pvalues,need improvement in terms of parameters considered.
