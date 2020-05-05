@@ -1,0 +1,360 @@
+<html>
+
+<head>
+<title>Title</"Exploring the BRFSS data>
+</head>
+
+<body>
+
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+
+library(ggplot2)
+
+library(dplyr)
+
+```
+
+### Load data
+
+
+```{r load-data}
+
+load("brfss2013.RData")
+
+```
+
+* * *
+
+## Part 1: Data
+
+The data was collected from subjects that were randomly assigned to answer the phone call and fill a survey. To obtain a satisfactory representation of the general population from the california state, the subjects were selected from different occupations. For example, stuff from the hospital (nurses and medicians), waitresses from the coffeshops and restaurants as well as photographers.So significant statistical differences were found in the sample.It is worth mentiona that the selected subject's age was very resctricted (from 28 to 45), and thus may represent a bias towards statistical analysis.
+
+
+```{r subsetCA}
+
+df = brfss
+
+rm(brfss)                             # get rid of long name
+
+df = df[20000:40000,]                     # trimming data, no CA rows deleted
+
+df = tbl_df(df)        
+
+df = filter(df, X_state=="California")    # subsetting for CA state only
+
+dim(df)
+
+```
+
+Due to the fact that this has been collected retrospectively we can only imply CORRELATIONS not CAUSALITY.
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:** *What are the statistical characteristics of the
+estimaged age-gender specific maximum tobacco consumption? Does it follow a
+normal distribution?* We wanted to observe if there was higher tobbaco consumption in a particular working area, so we could perfome another study related with how stressful are the working positions so it could be a cause for higher consumption of tobacco.
+
+variable: `$maxvol_` (continuous) in ml/min/kg
+
+
+**Research quesion 2:** *Does a correlation exist between the hours slept
+each night and reported days with poor physical health or poor mental health
+in the last 30 days?* The reason why se focused on this question was to examine whether the professional from the three selected working areas were suffering from sleep deprivation so it could serve as a variable for poor physical/mental health. 
+
+explanatory variable: `sleptim1` in hours
+
+response variables: `physhlth` and `menthlth` in days
+
+      all of these variables are continuous
+      
+      
+
+####Research quesion 3: *Does a correlation exist between the body mass index (BMI) of the
+individual answering the survey and having a high blood cholesterol or having a heart attack?*
+The last two digits of this variable are implied decimal places, before doing anything this corrects to the units: `kg/m^2`. With this research question we wanted to establish the probability of one particular working area to have professionals at risk to having a heart attack
+
+```{r obesity.1}
+
+df$X_bmi5 = as.numeric(df$X_bmi5)/100
+
+```
+
+
+####Research quesion 1:
+
+*What are the statistical characteristics of the estimaged age-gender specific maximum tobacco consumption? Does it follow a normal distribution?* The last two digits of this variable are implied decimal places, before doing anything this corrects to the units: `ml/min/kg`
+
+```{r maxvol_.1}
+
+df$maxvo2_ = as.numeric(df$maxvol_)/100
+
+```
+
+We will now get some descritptive statistics on the computed measurement.
+
+```{r maxvol_.2}
+
+summary(df$maxvol_)
+
+sd(df$maxvol_, na.rm=TRUE)
+
+```
+
+Next some exploratory graphs
+
+```{r maxvol_.3}
+
+maxvo2 = ggplot(df, aes(x=maxvol_)) + theme_bw() +
+
+          geom_histogram(binwidth=2, alpha=0.5, aes(y=..density..), fill="lightblue", col="grey") +
+
+           stat_function(fun=dnorm, args=list(mean=30.31, sd=8.7), col="red") +
+
+            geom_rug() +
+
+             labs(title="Distribution of VO2 max in California Population",
+
+                  x="VOl_ max (ml O2/min/kg)",
+
+                  y="Frequency")
+
+maxvol_
+
+```
+
+      The red superimposed curve is a normal distribution with the same
+
+      mean and standard deviation that this sample has. Nevertheless, this
+
+      is not the most accurate way to determine if `maxvol_` has a normal
+
+      distribution.
+
+A another visual method to evaluate if this sample follow a sample
+
+distribution is a normal probability plot using the `qqnorm` function
+
+```{r maxvol_.4}
+
+qqnorm(df$maxvol_)
+
+qqline(df$maxvol_)
+
+```
+
+The sample looks like it does not follow a normal distribution, it is seem to be ***bimodal*** as evidenced from the 'S' shape of the QQ plot. Regardless, we can use the `Shapiro-Wilk normality test` to assess this more thoroughly. The null hypothesis (Ho) is that the data follow a normal
+distribution, and we will reject the Ho if the `p-value < 0.05`.
+
+```{r}
+
+shapiro.test(sample(df$maxvo2_, 5000))
+
+```
+
+Unfortunately, the shapiro.test function only allows for samples
+with sizes between 3 and 5000 observations, therefore we take arandom sample.
+
+**Conclusion** `p < 2.2e-16`, we can assume that this sample **does not
+
+follow a normal distribution.**
+
+---
+
+####Research quesion 2:
+
+*Does a correlation exist between the hours slept each night and reported days with poor physical health or poor mental health in the last 30 days?*
+
+Turning all the values into `numeric`
+
+```{r sleep.1}
+
+df$sleptim1 = as.numeric(df$sleptim1)
+
+df$physhlth = as.numeric(df$physhlth)
+
+df$menthlth = as.numeric(df$menthlth)
+
+```
+
+Descriptive statistics
+
+```{r sleep.2}
+
+stats = summarize(df, "sleptim1", mean(sleptim1, na.rm=T), sd(sleptim1, na.rm=T))
+
+colnames(stats) = c("Variable", "mean", "sd")
+
+temp = summarize(df, "physhlth", mean(physhlth, na.rm=T), sd(physhlth, na.rm=T))
+
+colnames(temp) = c("Variable", "mean", "sd")
+
+stats = rbind(stats, temp)
+
+temp = summarize(df, "menthlth", mean(physhlth, na.rm=T), sd(menthlth, na.rm=T))
+
+colnames(temp) = c("Variable", "mean", "sd")
+
+stats = rbind(stats, temp)
+
+stats
+
+```
+
+Lets test the correlation between hours slept each night and reported days
+
+with poor physical health in the last 30 days
+
+```{r sleep.3}
+
+ggplot(df, aes(x=sleptim1, y=physhlth)) +
+
+ theme_bw() +
+
+  geom_jitter(alpha=0.25) +
+
+   geom_smooth() +
+
+    labs(x="Hours slept / night", y="Poor physical health (days / month)")
+
+cor(df$sleptim1, df$physhlth, use="complete.obs")
+
+```
+
+There appears to be no clear correlation in the exploratory graph. Also the coefficient of correlation `r=-0.04` is not significant.
+
+Now, lets test the correlation between hours slept each night and reported
+
+days with poor mental health in the last 30 days
+
+```{r sleep.4}
+
+ggplot(df, aes(x=sleptim1, y=menthlth)) +
+
+ theme_bw() +
+
+  geom_jitter(alpha=0.25) +
+
+   geom_smooth() +
+
+    labs(x="Hours slept / night", y="Poor mental health (days / month)")
+
+cor(df$sleptim1, df$menthlth, use="complete.obs")
+
+```
+
+Same thing, no visual correlation or significant coefficient can be deducted
+
+`r=-0.11`.
+
+**Conclusion:** ***Even though there is no linear relationship between the
+hours slept and both dependent variables, there is a dip in the lowess
+regression line plotted which leads to infer that people on both extremes of
+the spectrum might have a higher number of days with poor physical or mental
+health.***
+
+---
+
+
+
+####Research quesion 3:
+
+*Does a correlation exist between the body mass index (BMI) of the individual answering the survey and having a high blood cholesterol or having a heart attack?* The last two digits of this variable are implied decimal places, before doing anything this corrects to the units: `kg/m^2`
+
+```{r obesity.1}
+
+df$X_bmi5 = as.numeric(df$X_bmi5)/100
+
+```
+
+Descriptive statistics
+
+```{r obesity.2}
+
+summary(df$X_bmi5)
+
+sd(df$X_bmi5, na.rm=TRUE)
+
+table(df$toldhi2) # High cholesterol?
+
+table(df$cvdinfr4) #Ever had a heart attack?
+
+```
+
+Exploratory graph for high cholesterol
+
+```{r obesity.3}
+
+ggplot(df, aes(x=toldhi2, y=X_bmi5, fill=toldhi2)) +
+
+ theme_bw() +
+
+  geom_violin() +
+
+   labs(title="Violin Plot",
+
+        x="Ever told you have high cholesterol?",
+
+        y="BMI (kg/m^2)")
+
+```
+
+Statistical analysis for high cholesterol
+
+```{r obesity.4}
+
+temp = filter(df, toldhi2=="Yes" | toldhi2=="No") %>%
+
+            select(X_bmi5, toldhi2)
+
+chisq.test(temp$X_bmi5, temp$toldhi2)
+
+```
+
+`p=2.9e-4` therefore we can reject the Ho that states that there is no
+
+correlation between having a higher BMI and suffering hypercholesterolemia.
+
+Exploratory graph for heart attack
+
+```{r obesity.5}
+
+ggplot(df, aes(x=cvdinfr4, y=X_bmi5, fill=cvdinfr4)) +
+
+ theme_bw() +
+
+  geom_violin() +
+
+   labs(title="Violin Plot",
+
+        x="Have you ever had a heart attack?",
+
+        y="BMI (kg/m^2)")
+
+```
+
+Statistical analysis for heart attack
+
+```{r obesity.6}
+
+temp = filter(df, cvdinfr4=="Yes" | cvdinfr4=="No") %>%
+
+            select(X_bmi5, cvdinfr4)
+
+chisq.test(temp$X_bmi5, temp$cvdinfr4)
+
+```
+
+`p=6.47e-13` therefore we can reject the Ho that states that there is no
+
+correlation between having a higher BMI and having a heart attack.
+
+**Conclusion:** ***Having a higher BMI correlates statistically with
+having hypercholesterolemia or having a heart attack.*** Thus, the variable BMI is important to 
+establish the possible heart attack.
